@@ -1,0 +1,16 @@
+# .gitignore
+# Binaries
+/glide-quickstart
+
+# OS files
+.DS_Store
+
+# Go coverage tools
+coverage.out
+
+# IDE files
+.idea/
+.vscode/
+
+# Environment files
+.env
