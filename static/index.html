@@ -104,6 +104,7 @@
                 responseText.innerHTML = htmlToDisplay;
                 response.classList.add('visible');
                 if (!verificationRes.authUrl) {
+                    console.error('return missing authUrl in res')
                     return
                 }
                 setTimeout(() => {
@@ -136,13 +137,10 @@
                 if (event.origin === "https://api.gateway-x.io") {
                     window.removeEventListener('message', messageListener);
                     const authRes = JSON.parse(event.data);
-
                     followFrameBtn.classList.remove('loading');
                     followFrameBtn.innerText = followFrameBtn.defaultText;
-
                     tokenText.innerHTML = authRes.token;
                     token.classList.add('visible');
-
                     setTimeout(() => {
                         stepThree.classList.add('visible');
                         sendingToServer.style.display = 'block';
@@ -163,7 +161,6 @@
             followRedirectBtn.classList.add('disabled');
             const popup = window.open(verificationRes.flatAuthUrl, 'authPopup', 'width=600,height=600');
             const messageListener = (event) => {
-                console.log(event);
                 if (event.origin === "https://api.gateway-x.io") {
                     window.removeEventListener('message', messageListener);
                     const authRes = JSON.parse(event.data);
@@ -210,14 +207,13 @@
                 verificationResultText.innerHTML = htmlToDisplay;
                 verificationResult.classList.add('visible');
                 addConfettiRainOfLogo(glideLogo);
-
             } catch (error) {
                 console.error(error);
             }
         }
 
         window.addEventListener('load', async () => {
-            const query = new URLSearchParams(window.location.search);  
+            const query = new URLSearchParams(window.location.search);
             const tokenVal = query.get('token');
             const state = query.get('state');
             if (tokenVal && state) {
@@ -238,13 +234,12 @@
                 const phoneNumber = sessionRes.phoneNumber;
                 phone.value = phoneNumber;
                 tokenText.innerHTML = tokenVal;
-                    token.classList.add('visible');
-
-                    setTimeout(() => {
-                        stepThree.classList.add('visible');
-                        sendingToServer.style.display = 'block';
-                        sendTokenToServer(tokenVal);
-                    }, 1000);
+                token.classList.add('visible');
+                setTimeout(() => {
+                    stepThree.classList.add('visible');
+                    sendingToServer.style.display = 'block';
+                    sendTokenToServer(tokenVal);
+                }, 1000);
             }
         });
 
