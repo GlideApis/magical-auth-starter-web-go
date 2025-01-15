@@ -6,8 +6,9 @@ import (
 	"net/http"
 	"os"
 	"sync"
-	"github.com/ClearBlockchain/sdk-go/pkg/glide"
-	"github.com/ClearBlockchain/sdk-go/pkg/types"
+
+	"github.com/GlideApis/sdk-go/pkg/glide"
+	"github.com/GlideApis/sdk-go/pkg/types"
 	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
@@ -15,7 +16,7 @@ import (
 )
 
 func main() {
-    // Load environment variables from .env file if it exists
+	// Load environment variables from .env file if it exists
 	err := godotenv.Load()
 	if err != nil {
 		log.Println("No .env file found or error reading .env file")
@@ -78,9 +79,9 @@ func main() {
 		}
 
 		authRes, err := glideClient.MagicAuth.StartAuth(types.MagicAuthStartProps{
-			PhoneNumber:     phoneNumber,
-			State:           sessionID,
-			RedirectURL:     redirectURL,
+			PhoneNumber: phoneNumber,
+			State:       sessionID,
+			RedirectURL: redirectURL,
 		}, types.ApiConfig{
 			SessionIdentifier: sessionID,
 		})
@@ -121,14 +122,14 @@ func main() {
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Error verifying token"})
 		}
 
-// 		// Report metric
-// 		reportMetric(types.Metric{
-// 			SessionID:  sessionID,
-// 			Timestamp:  time.Now(),
-// 			MetricName: "third party success",
-// 			API:        "magic-auth",
-// 			ClientID:   "AGGX1YZ8524ZZDIKMOEQZ99",
-// 		})
+		// 		// Report metric
+		// 		reportMetric(types.Metric{
+		// 			SessionID:  sessionID,
+		// 			Timestamp:  time.Now(),
+		// 			MetricName: "third party success",
+		// 			API:        "magic-auth",
+		// 			ClientID:   "AGGX1YZ8524ZZDIKMOEQZ99",
+		// 		})
 
 		return c.JSON(http.StatusOK, verifyRes)
 	})
@@ -170,18 +171,18 @@ func SetupGlideSettings() types.GlideSdkSettings {
 	if os.Getenv("GLIDE_CLIENT_SECRET") == "" {
 		log.Fatal("GLIDE_CLIENT_SECRET environment variable is not set")
 	}
-// 	if os.Getenv("GLIDE_REDIRECT_URI") == "" {
-// 		log.Info("GLIDE_REDIRECT_URI environment variable is not set")
-// 	}
-// 	if os.Getenv("GLIDE_AUTH_BASE_URL") == "" {
-// 		log.Info("GLIDE_AUTH_BASE_URL environment variable is not set")
-// 	}
-// 	if os.Getenv("GLIDE_API_BASE_URL") == "" {
-// 		log.Info("GLIDE_API_BASE_URL environment variable is not set")
-// 	}
-// 	if os.Getenv("REPORT_METRIC_URL") == "" {
-// 		fmt.Info("REPORT_METRIC_URL environment variable is not set")
-// 	}
+	// 	if os.Getenv("GLIDE_REDIRECT_URI") == "" {
+	// 		log.Info("GLIDE_REDIRECT_URI environment variable is not set")
+	// 	}
+	// 	if os.Getenv("GLIDE_AUTH_BASE_URL") == "" {
+	// 		log.Info("GLIDE_AUTH_BASE_URL environment variable is not set")
+	// 	}
+	// 	if os.Getenv("GLIDE_API_BASE_URL") == "" {
+	// 		log.Info("GLIDE_API_BASE_URL environment variable is not set")
+	// 	}
+	// 	if os.Getenv("REPORT_METRIC_URL") == "" {
+	// 		fmt.Info("REPORT_METRIC_URL environment variable is not set")
+	// 	}
 	return types.GlideSdkSettings{
 		ClientID:     os.Getenv("GLIDE_CLIENT_ID"),
 		ClientSecret: os.Getenv("GLIDE_CLIENT_SECRET"),
@@ -192,4 +193,3 @@ func SetupGlideSettings() types.GlideSdkSettings {
 		},
 	}
 }
-
