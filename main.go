@@ -40,8 +40,7 @@ func main() {
 	// Create Echo instance
 	e := echo.New()
 
-	// Middleware
-	e.Use(middleware.Logger())
+// 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 	e.Use(middleware.BodyLimit("2M"))
 
@@ -89,8 +88,6 @@ func main() {
 			log.Println("Error starting auth:", err)
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Error starting auth"})
 		}
-		log.Println("authRes", authRes)
-
 		// Return authRes and sessionID to the client
 		return c.JSON(http.StatusOK, authRes)
 	})
@@ -118,7 +115,6 @@ func main() {
 			SessionIdentifier: sessionID,
 		})
 		if err != nil {
-			log.Println("Error verifying token:", err)
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Error verifying token"})
 		}
 
@@ -151,10 +147,8 @@ func main() {
 		stateCacheMutex.Unlock()
 
 		if !ok {
-			log.Println("State not found")
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Error getting session"})
 		}
-
 		return c.JSON(http.StatusOK, map[string]string{"phoneNumber": phoneNumber})
 	})
 
@@ -171,18 +165,7 @@ func SetupGlideSettings() types.GlideSdkSettings {
 	if os.Getenv("GLIDE_CLIENT_SECRET") == "" {
 		log.Fatal("GLIDE_CLIENT_SECRET environment variable is not set")
 	}
-	// 	if os.Getenv("GLIDE_REDIRECT_URI") == "" {
-	// 		log.Info("GLIDE_REDIRECT_URI environment variable is not set")
-	// 	}
-	// 	if os.Getenv("GLIDE_AUTH_BASE_URL") == "" {
-	// 		log.Info("GLIDE_AUTH_BASE_URL environment variable is not set")
-	// 	}
-	// 	if os.Getenv("GLIDE_API_BASE_URL") == "" {
-	// 		log.Info("GLIDE_API_BASE_URL environment variable is not set")
-	// 	}
-	// 	if os.Getenv("REPORT_METRIC_URL") == "" {
-	// 		fmt.Info("REPORT_METRIC_URL environment variable is not set")
-	// 	}
+
 	return types.GlideSdkSettings{
 		ClientID:     os.Getenv("GLIDE_CLIENT_ID"),
 		ClientSecret: os.Getenv("GLIDE_CLIENT_SECRET"),
@@ -190,6 +173,7 @@ func SetupGlideSettings() types.GlideSdkSettings {
 		Internal: types.InternalSettings{
 			AuthBaseURL: os.Getenv("GLIDE_AUTH_BASE_URL"),
 			APIBaseURL:  os.Getenv("GLIDE_API_BASE_URL"),
+			// optional add here the log level (LogLevel: types.DEBUG)
 		},
 	}
 }
