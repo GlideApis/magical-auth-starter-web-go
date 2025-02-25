@@ -134,7 +134,8 @@
             iframe.style.width = '0px';
             iframe.style.height = '0px';
             const messageListener = (event) => {
-                if (event.origin === "https://api.gateway-x.io") {
+                console.log("event.origin: ", event.origin);
+                if (event.origin.match(/^https:\/\/[^\/]+\.gateway-x\.io$/)) {
                     window.removeEventListener('message', messageListener);
                     const authRes = JSON.parse(event.data);
                     followFrameBtn.classList.remove('loading');
@@ -161,7 +162,8 @@
             followRedirectBtn.classList.add('disabled');
             const popup = window.open(verificationRes.flatAuthUrl, 'authPopup', 'width=600,height=600');
             const messageListener = (event) => {
-                if (event.origin === "https://api.gateway-x.io") {
+                console.log("event.origin: ", event.origin);
+                if (event.origin.match(/^https:\/\/[^\/]+\.gateway-x\.io$/)) {
                     window.removeEventListener('message', messageListener);
                     const authRes = JSON.parse(event.data);
                     popup.close();
