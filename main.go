@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 
 	"github.com/GlideApis/sdk-go/pkg/glide"
@@ -14,6 +15,28 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
+
+// SessionData stores information about an authentication session
+type SessionData struct {
+	PhoneNumber     string `json:"phoneNumber"`
+	Status          string `json:"status"`
+	DeviceIPAddress string `json:"deviceIpAddress"`
+	Error           string `json:"error,omitempty"`
+}
+
+// getClientIP extracts the client IP address from the request headers
+func getClientIP(c echo.Context) string {
+	// Check X-Forwarded-For header first
+	if xForwardedFor := c.Request().Header.Get("X-Forwarded-For"); xForwardedFor != "" {
+		// If multiple IPs in X-Forwarded-For, take the first one (original client)
+		if i := strings.Index(xForwardedFor, ","); i > 0 {
+			return strings.TrimSpace(xForwardedFor[:i])
+		}
+		return strings.TrimSpace(xForwardedFor)
+	}
+	// Fall back to RemoteAddr if X-Forwarded-For is not present
+	return c.Request().RemoteAddr
+}
 
 func main() {
 	// Load environment variables from .env file if it exists
@@ -33,14 +56,14 @@ func main() {
 		log.Fatalf("Failed to create GlideClient: %v", err)
 	}
 
-	// State cache to store session IDs and phone numbers
-	stateCache := make(map[string]string)
+	// State cache to store session data
+	stateCache := make(map[string]*SessionData)
 	var stateCacheMutex sync.Mutex // To handle concurrent access
 
 	// Create Echo instance
 	e := echo.New()
 
-// 	e.Use(middleware.Logger())
+	// 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 	e.Use(middleware.BodyLimit("2M"))
 
@@ -62,13 +85,19 @@ func main() {
 		}
 
 		phoneNumber := body.PhoneNumber
+		deviceIPAddress := getClientIP(c)
+		log.Printf("Start Auth for %s from IP %s", phoneNumber, deviceIPAddress)
 
 		// Generate a new session ID
 		sessionID := uuid.New().String()
 
-		// Store phone number in state cache
+		// Store session data in state cache
 		stateCacheMutex.Lock()
-		stateCache[sessionID] = phoneNumber
+		stateCache[sessionID] = &SessionData{
+			PhoneNumber:     phoneNumber,
+			Status:          "pending",
+			DeviceIPAddress: deviceIPAddress,
+		}
 		stateCacheMutex.Unlock()
 
 		// Call glideClient.MagicAuth.StartAuth
@@ -81,13 +110,15 @@ func main() {
 			PhoneNumber: phoneNumber,
 			State:       sessionID,
 			RedirectURL: redirectURL,
+			DeviceIPAddress: deviceIPAddress,
 		}, types.ApiConfig{
 			SessionIdentifier: sessionID,
 		})
 		if err != nil {
-			log.Println("Error starting auth:", err)
+			log.Printf("Error starting auth: %v", err)
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Error starting auth"})
 		}
+
 		// Return authRes and sessionID to the client
 		return c.JSON(http.StatusOK, authRes)
 	})
@@ -106,32 +137,37 @@ func main() {
 		phoneNumber := body.PhoneNumber
 		token := body.Token
 		sessionID := body.SessionID
+		deviceIPAddress := getClientIP(c)
+		log.Printf("Check Auth for %s from IP %s", phoneNumber, deviceIPAddress)
 
 		// Call glideClient.MagicAuth.VerifyAuth
 		verifyRes, err := glideClient.MagicAuth.VerifyAuth(types.MagicAuthVerifyProps{
 			PhoneNumber: phoneNumber,
 			Token:       token,
+			DeviceIPAddress: deviceIPAddress,
 		}, types.ApiConfig{
 			SessionIdentifier: sessionID,
 		})
 		if err != nil {
+			log.Printf("Error verifying token: %v", err)
 			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Error verifying token"})
 		}
 
-		// 		// Report metric
-		// 		reportMetric(types.Metric{
-		// 			SessionID:  sessionID,
-		// 			Timestamp:  time.Now(),
-		// 			MetricName: "third party success",
-		// 			API:        "magic-auth",
-		// 			ClientID:   "AGGX1YZ8524ZZDIKMOEQZ99",
-		// 		})
+		// Update session status
+		stateCacheMutex.Lock()
+		if session, exists := stateCache[sessionID]; exists {
+			if verifyRes.Verified {
+				session.Status = "verified"
+			} else {
+				session.Status = "failed"
+			}
+		}
+		stateCacheMutex.Unlock()
 
 		return c.JSON(http.StatusOK, verifyRes)
 	})
 
 	e.POST("/api/get-session", func(c echo.Context) error {
-		// Parse request body
 		var body struct {
 			State string `json:"state"`
 		}
@@ -140,16 +176,40 @@ func main() {
 		}
 
 		state := body.State
+		log.Println("Get Session")
 
-		// Retrieve phone number from state cache
+		// Retrieve session data from state cache
 		stateCacheMutex.Lock()
-		phoneNumber, ok := stateCache[state]
+		sessionData, ok := stateCache[state]
 		stateCacheMutex.Unlock()
 
 		if !ok {
-			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Error getting session"})
+			return c.JSON(http.StatusNotFound, map[string]string{"error": "Session not found"})
 		}
-		return c.JSON(http.StatusOK, map[string]string{"phoneNumber": phoneNumber})
+		return c.JSON(http.StatusOK, sessionData)
+	})
+
+	// Add callback endpoint
+	e.GET("/callback", func(c echo.Context) error {
+		state := c.QueryParam("state")
+		errorParam := c.QueryParam("error")
+
+		stateCacheMutex.Lock()
+		session, exists := stateCache[state]
+		if !exists {
+			stateCacheMutex.Unlock()
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid state parameter"})
+		}
+
+		if errorParam != "" {
+			session.Status = "error"
+			session.Error = errorParam
+		} else {
+			session.Status = "callback_received"
+		}
+		stateCacheMutex.Unlock()
+
+		return c.File("static/index.html")
 	})
 
 	// Start server
